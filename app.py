@@ -1,40 +1,19 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import joblib
 import requests
 import os
 
-BASE_URL = "https://github.com/othyuiop/rt-iot-ids/releases/download/v1"
+MODEL_URL = "https://github.com/othyuiop/rt-iot-ids/releases/download/v1/model.pkl"
 
-FILES = [
-    "model.pkl",
-    "scaler.pkl",
-    "selector.pkl",
-    "encoder_cat.pkl",
-    "cat_cols.pkl",
-    "num_cols.pkl"
-]
+if not os.path.exists("model.pkl"):
+    st.info("Téléchargement du modèle ML...")
+    r = requests.get(MODEL_URL)
+    r.raise_for_status()
+    with open("model.pkl", "wb") as f:
+        f.write(r.content)
 
-@st.cache_resource(show_spinner=True)
-def load_artifacts():
-    artifacts = {}
-    for file in FILES:
-        if not os.path.exists(file):
-            st.info(f"Téléchargement de {file}...")
-            url = f"{BASE_URL}/{file}"
-            r = requests.get(url)
-            r.raise_for_status()   # 👈 très important
-            with open(file, "wb") as f:
-                f.write(r.content)
-        artifacts[file] = joblib.load(file)
-    return artifacts
+model = joblib.load("model.pkl")
 
-artifacts = load_artifacts()
-
-model = artifacts["model.pkl"]
-scaler = artifacts["scaler.pkl"]
-selector = artifacts["selector.pkl"]
-encoder_cat = artifacts["encoder_cat.pkl"]
-cat_cols = artifacts["cat_cols.pkl"]
-num_cols = artifacts["num_cols.pkl"]
+scaler = joblib.load("scaler.pkl")
+selector = joblib.load("selector.pkl")
+encoder_cat = joblib.load("encoder_cat.pkl")
+cat_cols = joblib.load("cat_cols.pkl")
+num_cols = joblib.load("num_cols.pkl")
