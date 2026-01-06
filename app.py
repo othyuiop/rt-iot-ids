@@ -1,46 +1,45 @@
-# NOTE:
-# Les fichiers du modèle (.pkl) sont chargés localement.
-# Ils ne sont pas inclus sur GitHub en raison des limitations de taille.
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import requests
+import os
 
-# Charger les objets sauvegardés
-model = joblib.load("model.pkl")
-scaler = joblib.load("scaler.pkl")
-selector = joblib.load("selector.pkl")
-encoder_cat = joblib.load("encoder_cat.pkl")
-cat_cols = joblib.load("cat_cols.pkl")
-num_cols = joblib.load("num_cols.pkl")
+# ==============================
+# URLs des fichiers (GitHub Releases)
+# ==============================
+BASE_URL = "https://github.com/othyuiop/rt-iot-ids/releases/download/v1"
 
-st.title("IoT Intrusion Detection System")
-st.write("Classification des types d’attaques réseau (RT-IoT2022)")
+FILES = {
+    "model.pkl": f"{BASE_URL}/model.pkl",
+    "scaler.pkl": f"{BASE_URL}/scaler.pkl",
+    "selector.pkl": f"{BASE_URL}/selector.pkl",
+    "encoder_cat.pkl": f"{BASE_URL}/encoder_cat.pkl",
+    "cat_cols.pkl": f"{BASE_URL}/cat_cols.pkl",
+    "num_cols.pkl": f"{BASE_URL}/num_cols.pkl",
+}
 
-uploaded_file = st.file_uploader("Uploader un fichier CSV", type=["csv"])
+# ==============================
+# Téléchargement + chargement
+# ==============================
+@st.cache_resource(show_spinner=True)
+def load_artifacts():
+    artifacts = {}
+    for name, url in FILES.items():
+        if not os.path.exists(name):
+            st.info(f"Téléchargement de {name} ...")
+            r = requests.get(url)
+            r.raise_for_status()   # 👈 IMPORTANT
+            with open(name, "wb") as f:
+                f.write(r.content)
+        artifacts[name] = joblib.load(name)
+    return artifacts
 
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
+artifacts = load_artifacts()
 
-    st.subheader("Aperçu des données")
-    st.write(df.head())
-
-    # Séparation des colonnes
-    X_cat = df[cat_cols]
-    X_num = df[num_cols]
-
-    # Encodage et normalisation
-    X_cat_enc = encoder_cat.transform(X_cat)
-    X_num_scaled = scaler.transform(X_num)
-
-    # Fusion
-    X_processed = np.hstack((X_num_scaled, X_cat_enc))
-
-    # Feature selection
-    X_final = selector.transform(X_processed)
-
-    if st.button("Prédire"):
-        predictions = model.predict(X_final)
-        st.subheader("Résultat de la prédiction")
-        st.write(predictions)
+model = artifacts["model.pkl"]
+scaler = artifacts["scaler.pkl"]
+selector = artifacts["selector.pkl"]
+encoder_cat = artifacts["encoder_cat.pkl"]
+cat_cols = artifacts["cat_cols.pkl"]
+num_cols = artifacts["num_cols.pkl"]
